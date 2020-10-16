@@ -49,7 +49,6 @@ describe('RelayAuction', () => {
   });
 
   it('update', async () => {
-
     // place a bid
     const aliceAddr = await alice.getAddress();
     await auctionToken.connect(alice).approve(auction.address, expandTo18Decimals(200));
@@ -93,7 +92,6 @@ describe('RelayAuction', () => {
     await relay.addHeader(chain[2].digest_le, 287);
     headers = concatenateHexStrings(headerHex.slice(3, 6));
     await auction.connect(bob).addHeaders(chain[2].hex, headers);
-
 
     const aliceBal = await rewardToken.balanceOf(aliceAddr);
     expect(aliceBal).to.eq(rewardAmount);
