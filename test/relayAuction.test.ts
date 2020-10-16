@@ -88,12 +88,17 @@ describe('RelayAuction', () => {
     bestBid = await auction.bestBid(288);
     expect(bestBid).to.eq(aliceAddr);
 
+    const aliceBalBefore = await auctionToken.balanceOf(aliceAddr);
+
     // prepare chain at height 287
     await relay.addHeader(chain[2].digest_le, 287);
     headers = concatenateHexStrings(headerHex.slice(3, 6));
     await auction.connect(bob).addHeaders(chain[2].hex, headers);
 
-    const aliceBal = await rewardToken.balanceOf(aliceAddr);
-    expect(aliceBal).to.eq(rewardAmount);
+    // check earnings of relayer
+    const aliceRewardBal = await rewardToken.balanceOf(aliceAddr);
+    expect(aliceRewardBal).to.eq(rewardAmount);
+    const aliceBalAfter = await auctionToken.balanceOf(aliceAddr);
+    expect(aliceBalAfter.sub(aliceBalBefore)).to.eq(expandTo18Decimals(2));
   });
 });

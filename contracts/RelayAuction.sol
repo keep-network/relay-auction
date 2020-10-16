@@ -31,11 +31,16 @@ contract RelayAuction {
     uint256 startBlock;
   }
 
+  struct Bids {
+    mapping(address => uint256) amounts;
+    address bestBidder;
+    uint256 bestAmount;
+  }
+
   Slot public currentRound;
 
-  // mapping from slotStractBlock and address to bet amount
-  mapping(uint256 => mapping(address => uint256)) bids;
-  mapping(uint256 => address) public bestBid;
+  // mapping from slotStartBlock and address to bet amount
+  mapping(uint256 => Bids) private bids;
 
   constructor(
     address _relay,
@@ -49,17 +54,22 @@ contract RelayAuction {
     auctionToken = ERC20Burnable(_auctionToken);
   }
 
+  function bestBid(uint256 slotStartBlock) external view returns (address) {
+    return bids[slotStartBlock].bestBidder;
+  }
+
   function bid(uint256 slotStartBlock, uint256 amount) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     // check that betting for next round
     require(slotStartBlock > currentRound.startBlock, "can not bet for running rounds");
-    uint256 prevBet = bids[slotStartBlock][msg.sender];
+    uint256 prevBet = bids[slotStartBlock].amounts[msg.sender];
     require(amount > prevBet, "can not bet lower");
     // pull the funds
     auctionToken.transferFrom(msg.sender, address(this), amount.sub(prevBet));
-    bids[slotStartBlock][msg.sender] = amount;
-    if (amount > bids[slotStartBlock][bestBid[slotStartBlock]]) {
-      bestBid[slotStartBlock] = msg.sender;
+    bids[slotStartBlock].amounts[msg.sender] = amount;
+    if (amount > bids[slotStartBlock].bestAmount) {
+      bids[slotStartBlock].bestBidder = msg.sender;
+      bids[slotStartBlock].bestAmount = amount;
     }
   }
 
@@ -67,10 +77,10 @@ contract RelayAuction {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
     require(
-      auctionToken.transfer(msg.sender, bids[slotStartBlock][msg.sender]),
+      auctionToken.transfer(msg.sender, bids[slotStartBlock].amounts[msg.sender]),
       "could not transfer"
     );
-    bids[slotStartBlock][msg.sender] = 0;
+    bids[slotStartBlock].amounts[msg.sender] = 0;
   }
 
   function _updateRound(uint256 _currentBestHeight) internal {
@@ -80,23 +90,20 @@ contract RelayAuction {
       if (round.slotWinner != address(0)) {
         // pay out old slot owner
         rewardToken.transfer(round.slotWinner, rewardAmount);
-        auctionToken.transfer(
-          round.slotWinner,
-          bids[round.startBlock][bestBid[round.startBlock]] / 2
-        );
+        auctionToken.transfer(round.slotWinner, bids[round.startBlock].bestAmount / 2);
       }
 
       // find new height
       uint256 newCurrent = (_currentBestHeight / SLOT_LENGTH) * SLOT_LENGTH;
       // find new winner
-      address newWinner = bestBid[newCurrent];
+      address newWinner = bids[newCurrent].bestBidder;
       emit Data(newCurrent, newWinner);
 
       if (newWinner != address(0)) {
         // burn auctionToken
-        auctionToken.burn(bids[newCurrent][newWinner] / 2);
+        auctionToken.burn(bids[newCurrent].amounts[newWinner] / 2);
         // set bet to 0, so winner can not withdraw
-        bids[newCurrent][newWinner] = 0;
+        bids[newCurrent].amounts[newWinner] = 0;
 
         // set new current Round
         currentRound = Slot(newWinner, newCurrent);
