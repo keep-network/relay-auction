@@ -6,4 +6,8 @@ contract MockERC20 is ERC20 {
   constructor(uint256 supply) public ERC20("name", "SYM") {
     _mint(msg.sender, supply);
   }
+
+  function burn(uint256 amount) public returns (bool) {
+    _burn(msg.sender, amount);
+  }
 }

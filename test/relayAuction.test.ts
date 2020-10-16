@@ -1,7 +1,8 @@
 import {ethers} from '@nomiclabs/buidler';
 import {Signer, Contract, Wallet, BigNumber} from 'ethers';
 import chai from 'chai';
-import {expandTo18Decimals} from './shared/utilities';
+import REGULAR_CHAIN from './headers.json';
+import {expandTo18Decimals, concatenateHexStrings} from './shared/utilities';
 import {deployContract, solidity} from 'ethereum-waffle';
 import {MockRelay} from '../typechain/MockRelay';
 import {MockRelayFactory} from '../typechain/MockRelayFactory';
@@ -13,33 +14,88 @@ import {RelayAuctionFactory} from '../typechain/RelayAuctionFactory';
 chai.use(solidity);
 const {expect} = chai;
 const BYTES32_0 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const rewardAmount = expandTo18Decimals(2);
 
 describe('RelayAuction', () => {
-  let signers: Signer[];
+  let dev: Signer;
+  let alice: Signer;
+  let bob: Signer;
   let relay: MockRelay;
   let rewardToken: MockErc20;
   let auctionToken: MockErc20;
   let auction: RelayAuction;
 
   before(async () => {
-    signers = await ethers.getSigners();
+    [dev, alice, bob] = await ethers.getSigners();
 
-    relay = await new MockRelayFactory(signers[0]).deploy(BYTES32_0, 210, BYTES32_0, 211);
+    relay = await new MockRelayFactory(dev).deploy(BYTES32_0, 210, BYTES32_0, 211);
 
-    rewardToken = await new MockErc20Factory(signers[0]).deploy(expandTo18Decimals(10000));
+    rewardToken = await new MockErc20Factory(dev).deploy(expandTo18Decimals(10000));
 
-    auctionToken = await new MockErc20Factory(signers[0]).deploy(expandTo18Decimals(10000));
+    auctionToken = await new MockErc20Factory(dev).deploy(expandTo18Decimals(10000));
+    const aliceAddr = await alice.getAddress();
+    await auctionToken.transfer(aliceAddr, expandTo18Decimals(500));
+    const bobAddr = await bob.getAddress();
+    await auctionToken.transfer(bobAddr, expandTo18Decimals(500));
 
     // deploy auction
-    auction = await new RelayAuctionFactory(signers[0]).deploy(
+    auction = await new RelayAuctionFactory(dev).deploy(
       relay.address,
       rewardToken.address,
-      expandTo18Decimals(100),
+      rewardAmount,
       auctionToken.address
     );
+    await rewardToken.transfer(auction.address, expandTo18Decimals(200));
   });
 
   it('update', async () => {
-    await auction.updateRound();
+
+    // place a bid
+    const aliceAddr = await alice.getAddress();
+    await auctionToken.connect(alice).approve(auction.address, expandTo18Decimals(200));
+    await auction.connect(alice).bid(144, expandTo18Decimals(4));
+
+    // check alice placed best bid
+    let bestBid = await auction.bestBid(144);
+    expect(bestBid).to.eq(aliceAddr);
+
+    // prepare chain at height 143
+    const {chain, genesis} = REGULAR_CHAIN;
+    const headerHex = chain.map((header) => header.hex);
+    let headers = concatenateHexStrings(headerHex.slice(0, 3));
+    await relay.addHeader(REGULAR_CHAIN.genesis.digest_le, 143);
+
+    // move into next round
+    const tx = await auction.connect(alice).addHeaders(genesis.hex, headers);
+    // const events = (await tx.wait(1)).events!;
+    // console.log('events: ', events);
+
+    // check new round state
+    let currentRound = await auction.currentRound();
+    expect(currentRound.slotWinner).to.eq(aliceAddr);
+    expect(currentRound.startBlock).to.eq(144);
+
+    // bet on next round
+    const bobAddr = await bob.getAddress();
+    await auctionToken.connect(bob).approve(auction.address, expandTo18Decimals(200));
+    await auction.connect(bob).bid(288, expandTo18Decimals(4));
+
+    // check bob has best bet
+    bestBid = await auction.bestBid(288);
+    expect(bestBid).to.eq(bobAddr);
+
+    // alice to outbid bob
+    await auction.connect(alice).bid(288, expandTo18Decimals(6));
+    bestBid = await auction.bestBid(288);
+    expect(bestBid).to.eq(aliceAddr);
+
+    // prepare chain at height 287
+    await relay.addHeader(chain[2].digest_le, 287);
+    headers = concatenateHexStrings(headerHex.slice(3, 6));
+    await auction.connect(bob).addHeaders(chain[2].hex, headers);
+
+
+    const aliceBal = await rewardToken.balanceOf(aliceAddr);
+    expect(aliceBal).to.eq(rewardAmount);
   });
 });

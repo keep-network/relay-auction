@@ -23,19 +23,19 @@ contract RelayAuction {
 
   IERC20 rewardToken;
   uint256 rewardAmount;
-
   ERC20Burnable auctionToken;
+  IRelay relay;
 
   struct Slot {
     address slotWinner;
     uint256 startBlock;
   }
 
-  Slot currentRound;
-  IRelay relay;
+  Slot public currentRound;
+
   // mapping from slotStractBlock and address to bet amount
-  mapping(uint256 => mapping(address => uint256)) bets;
-  mapping(uint256 => address) bestBet;
+  mapping(uint256 => mapping(address => uint256)) bids;
+  mapping(uint256 => address) public bestBid;
 
   constructor(
     address _relay,
@@ -49,17 +49,17 @@ contract RelayAuction {
     auctionToken = ERC20Burnable(_auctionToken);
   }
 
-  function bet(uint256 slotStartBlock, uint256 amount) external {
+  function bid(uint256 slotStartBlock, uint256 amount) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     // check that betting for next round
     require(slotStartBlock > currentRound.startBlock, "can not bet for running rounds");
-    uint256 prevBet = bets[slotStartBlock][msg.sender];
+    uint256 prevBet = bids[slotStartBlock][msg.sender];
     require(amount > prevBet, "can not bet lower");
     // pull the funds
     auctionToken.transferFrom(msg.sender, address(this), amount.sub(prevBet));
-    bets[slotStartBlock][msg.sender] = amount;
-    if (amount > bets[slotStartBlock][bestBet[slotStartBlock]]) {
-      bestBet[slotStartBlock] = msg.sender;
+    bids[slotStartBlock][msg.sender] = amount;
+    if (amount > bids[slotStartBlock][bestBid[slotStartBlock]]) {
+      bestBid[slotStartBlock] = msg.sender;
     }
   }
 
@@ -67,10 +67,10 @@ contract RelayAuction {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
     require(
-      auctionToken.transfer(msg.sender, bets[slotStartBlock][msg.sender]),
+      auctionToken.transfer(msg.sender, bids[slotStartBlock][msg.sender]),
       "could not transfer"
     );
-    bets[slotStartBlock][msg.sender] = 0;
+    bids[slotStartBlock][msg.sender] = 0;
   }
 
   function _updateRound(uint256 _currentBestHeight) internal {
@@ -82,20 +82,21 @@ contract RelayAuction {
         rewardToken.transfer(round.slotWinner, rewardAmount);
         auctionToken.transfer(
           round.slotWinner,
-          bets[round.startBlock][bestBet[round.startBlock]] / 2
+          bids[round.startBlock][bestBid[round.startBlock]] / 2
         );
       }
 
       // find new height
       uint256 newCurrent = (_currentBestHeight / SLOT_LENGTH) * SLOT_LENGTH;
       // find new winner
-      address newWinner = bestBet[newCurrent];
+      address newWinner = bestBid[newCurrent];
+      emit Data(newCurrent, newWinner);
 
       if (newWinner != address(0)) {
         // burn auctionToken
-        auctionToken.burn(bets[newCurrent][newWinner] / 2);
+        auctionToken.burn(bids[newCurrent][newWinner] / 2);
         // set bet to 0, so winner can not withdraw
-        bets[newCurrent][newWinner] = 0;
+        bids[newCurrent][newWinner] = 0;
 
         // set new current Round
         currentRound = Slot(newWinner, newCurrent);
@@ -108,6 +109,8 @@ contract RelayAuction {
     uint256 currentBestHeight = relay.findHeight(bestKnown);
     _updateRound(currentBestHeight);
   }
+
+  event Data(uint256 height, address winner);
 
   function _checkRound(bytes29 _anchor, bytes29 _headers) internal returns (uint256) {
     uint256 relayHeight = relay.findHeight(_anchor.hash256());
@@ -122,10 +125,10 @@ contract RelayAuction {
 
     bool isActiveSlot = currentRound.startBlock < relayHeight &&
       relayHeight < currentRound.startBlock + SLOT_LENGTH;
-    if (isActiveSlot) {
-      require(msg.sender == currentRound.slotWinner, "not winner of current slot");
-    }
-    uint256 headerCount = _headers.length / 80;
+    // if (isActiveSlot) {
+    //   require(msg.sender == currentRound.slotWinner, "not winner of current slot");
+    // }
+    uint256 headerCount = _headers.len() / 80;
     // if we have left the slot, or it is filling up, roll slots forward
     if (!isActiveSlot || relayHeight + headerCount >= currentRound.startBlock + SLOT_LENGTH) {
       _updateRound(relayHeight + headerCount);
