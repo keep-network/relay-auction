@@ -10,7 +10,6 @@ import {ViewBTC} from "./summa-tx/ViewBTC.sol";
 import {ViewSPV} from "./summa-tx/ViewSPV.sol";
 import {IRelay} from "./summa-tx/IRelay.sol";
 
-
 contract RelayAuction {
   using SafeMath for uint256;
   using TypedMemView for bytes;
@@ -38,7 +37,12 @@ contract RelayAuction {
   mapping(uint256 => mapping(address => uint256)) bets;
   mapping(uint256 => address) bestBet;
 
-  constructor(address _relay, address _rewardToken, uint256 _rewardAmount, address _auctionToken) public {
+  constructor(
+    address _relay,
+    address _rewardToken,
+    uint256 _rewardAmount,
+    address _auctionToken
+  ) public {
     relay = IRelay(_relay);
     rewardToken = IERC20(_rewardToken);
     rewardAmount = _rewardAmount;
@@ -62,7 +66,10 @@ contract RelayAuction {
   function withdrawBet(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
-    require(auctionToken.transfer(msg.sender, bets[slotStartBlock][msg.sender]), "could not transfer");
+    require(
+      auctionToken.transfer(msg.sender, bets[slotStartBlock][msg.sender]),
+      "could not transfer"
+    );
     bets[slotStartBlock][msg.sender] = 0;
   }
 
@@ -73,7 +80,10 @@ contract RelayAuction {
       if (round.slotWinner != address(0)) {
         // pay out old slot owner
         rewardToken.transfer(round.slotWinner, rewardAmount);
-        auctionToken.transfer(round.slotWinner, bets[round.startBlock][bestBet[round.startBlock]] / 2);
+        auctionToken.transfer(
+          round.slotWinner,
+          bets[round.startBlock][bestBet[round.startBlock]] / 2
+        );
       }
 
       // find new height
@@ -109,8 +119,9 @@ contract RelayAuction {
     } catch Error(string memory) {
       // not found, so it is a new block
     }
-    
-    bool isActiveSlot = currentRound.startBlock < relayHeight && relayHeight < currentRound.startBlock + SLOT_LENGTH;
+
+    bool isActiveSlot = currentRound.startBlock < relayHeight &&
+      relayHeight < currentRound.startBlock + SLOT_LENGTH;
     if (isActiveSlot) {
       require(msg.sender == currentRound.slotWinner, "not winner of current slot");
     }
@@ -151,5 +162,4 @@ contract RelayAuction {
       "mark new heaviest failed"
     );
   }
-
 }

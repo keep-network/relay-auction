@@ -26,13 +26,9 @@ describe('RelayAuction', () => {
 
     relay = await new MockRelayFactory(signers[0]).deploy(BYTES32_0, 210, BYTES32_0, 211);
 
-    rewardToken = await new MockErc20Factory(signers[0]).deploy(
-      expandTo18Decimals(10000)
-    );
+    rewardToken = await new MockErc20Factory(signers[0]).deploy(expandTo18Decimals(10000));
 
-    auctionToken = await new MockErc20Factory(signers[0]).deploy(
-      expandTo18Decimals(10000)
-    );
+    auctionToken = await new MockErc20Factory(signers[0]).deploy(expandTo18Decimals(10000));
 
     // deploy auction
     auction = await new RelayAuctionFactory(signers[0]).deploy(
@@ -45,6 +41,5 @@ describe('RelayAuction', () => {
 
   it('update', async () => {
     await auction.updateRound();
-
   });
 });
