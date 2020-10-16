@@ -73,7 +73,7 @@ contract RelayAuction {
     }
   }
 
-  function withdrawBet(uint256 slotStartBlock) external {
+  function withdrawBid(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
     require(

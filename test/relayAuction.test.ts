@@ -100,5 +100,16 @@ describe('RelayAuction', () => {
     expect(aliceRewardBal).to.eq(rewardAmount);
     const aliceBalAfter = await auctionToken.balanceOf(aliceAddr);
     expect(aliceBalAfter.sub(aliceBalBefore)).to.eq(expandTo18Decimals(2));
+
+    // prepare chain at height 431
+    await relay.addHeader(chain[5].digest_le, 431);
+    headers = concatenateHexStrings(headerHex.slice(6, 9));
+    await auction.connect(bob).addHeaders(chain[5].hex, headers);
+
+    // bob to withdraw lost bid
+    const bobBalBefore = await auctionToken.balanceOf(bobAddr);
+    await auction.connect(bob).withdrawBid(288);
+    const bobBalAfter = await auctionToken.balanceOf(bobAddr);
+    expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
   });
 });
