@@ -112,4 +112,6 @@ describe('RelayAuction', () => {
     const bobBalAfter = await auctionToken.balanceOf(bobAddr);
     expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
   });
+
+  it('slot snapping');
 });
