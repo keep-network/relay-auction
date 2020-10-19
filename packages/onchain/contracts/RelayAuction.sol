@@ -20,6 +20,7 @@ contract RelayAuction {
   uint256 constant SLOT_LENGTH = 144;
 
   event NewRound(uint256 indexed startBlock, address indexed slotWinner, uint256 betAmount);
+  event Bid(uint256 indexed slotStartBlock, address indexed relayer, uint256 amount);
 
   IERC20 rewardToken;
   uint256 rewardAmount;
@@ -66,6 +67,7 @@ contract RelayAuction {
     require(amount > prevBet, "can not bet lower");
     // pull the funds
     auctionToken.transferFrom(msg.sender, address(this), amount.sub(prevBet));
+    emit Bid(slotStartBlock, msg.sender, amount);
     bids[slotStartBlock].amounts[msg.sender] = amount;
     if (amount > bids[slotStartBlock].bestAmount) {
       bids[slotStartBlock].bestBidder = msg.sender;
@@ -97,7 +99,8 @@ contract RelayAuction {
       uint256 newCurrent = (_currentBestHeight / SLOT_LENGTH) * SLOT_LENGTH;
       // find new winner
       address newWinner = bids[newCurrent].bestBidder;
-      emit Data(newCurrent, newWinner);
+
+      emit NewRound(currentRound.startBlock + SLOT_LENGTH, newWinner, bids[newCurrent].amounts[newWinner]);
 
       if (newWinner != address(0)) {
         // burn auctionToken
@@ -116,8 +119,6 @@ contract RelayAuction {
     uint256 currentBestHeight = relay.findHeight(bestKnown);
     _updateRound(currentBestHeight);
   }
-
-  event Data(uint256 height, address winner);
 
   function _checkRound(bytes29 _anchor, bytes29 _headers) internal returns (uint256) {
     uint256 relayHeight = relay.findHeight(_anchor.hash256());

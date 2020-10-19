@@ -114,4 +114,6 @@ describe('RelayAuction', () => {
   });
 
   it('slot snapping');
+
+  it('test permit');
 });
