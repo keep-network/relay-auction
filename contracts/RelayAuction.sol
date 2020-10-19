@@ -3,6 +3,7 @@
 pragma solidity 0.6.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// todo: make ownable
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import {TypedMemView} from "./summa-tx/TypedMemView.sol";
@@ -100,7 +101,7 @@ contract RelayAuction {
       // find new winner
       address newWinner = bids[newCurrent].bestBidder;
 
-      emit NewRound(currentRound.startBlock + SLOT_LENGTH, newWinner, bids[newCurrent].amounts[newWinner]);
+      emit NewRound(newCurrent, newWinner, bids[newCurrent].amounts[newWinner]);
 
       if (newWinner != address(0)) {
         // burn auctionToken
