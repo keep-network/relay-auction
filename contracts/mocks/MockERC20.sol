@@ -10,4 +10,16 @@ contract MockERC20 is ERC20 {
   function burn(uint256 amount) public returns (bool) {
     _burn(msg.sender, amount);
   }
+
+  function permit(
+    address owner,
+    address spender,
+    uint256 value,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external {
+    // mock
+  }
 }

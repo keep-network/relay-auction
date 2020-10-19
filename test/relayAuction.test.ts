@@ -28,7 +28,8 @@ describe('RelayAuction', () => {
   before(async () => {
     [dev, alice, bob] = await ethers.getSigners();
 
-    relay = await new MockRelayFactory(dev).deploy(BYTES32_0, 210, BYTES32_0, 211);
+    const {chain, genesis} = REGULAR_CHAIN;
+    relay = await new MockRelayFactory(dev).deploy(genesis.digest_le, 143, BYTES32_0, 211);
 
     rewardToken = await new MockErc20Factory(dev).deploy(expandTo18Decimals(10000));
 
@@ -62,10 +63,13 @@ describe('RelayAuction', () => {
     const {chain, genesis} = REGULAR_CHAIN;
     const headerHex = chain.map((header) => header.hex);
     let headers = concatenateHexStrings(headerHex.slice(0, 3));
-    await relay.addHeader(REGULAR_CHAIN.genesis.digest_le, 143);
+    await relay.addHeader(genesis.digest_le, 143);
 
     // move into next round
-    const tx = await auction.connect(alice).addHeaders(genesis.hex, headers);
+    await auction.addHeaders(genesis.hex, headers);
+    let tx = await auction
+      .connect(alice)
+      .markNewHeaviest(chain[2].digest_le, genesis.hex, chain[2].hex, 3);
     // const events = (await tx.wait(1)).events!;
     // console.log('events: ', events);
 
@@ -94,6 +98,7 @@ describe('RelayAuction', () => {
     await relay.addHeader(chain[2].digest_le, 287);
     headers = concatenateHexStrings(headerHex.slice(3, 6));
     await auction.connect(bob).addHeaders(chain[2].hex, headers);
+    await auction.connect(alice).markNewHeaviest(chain[5].digest_le, chain[2].hex, chain[5].hex, 3);
 
     // check earnings of relayer
     const aliceRewardBal = await rewardToken.balanceOf(aliceAddr);
@@ -106,6 +111,14 @@ describe('RelayAuction', () => {
     headers = concatenateHexStrings(headerHex.slice(6, 9));
     await auction.connect(bob).addHeaders(chain[5].hex, headers);
 
+    // try to withdraw before round over
+    await expect(auction.connect(bob).withdrawBid(288)).to.be.revertedWith(
+      'can not withdraw from future rounds'
+    );
+
+    // move round forward
+    await auction.connect(alice).markNewHeaviest(chain[8].digest_le, chain[5].hex, chain[8].hex, 3);
+
     // bob to withdraw lost bid
     const bobBalBefore = await auctionToken.balanceOf(bobAddr);
     await auction.connect(bob).withdrawBid(288);
@@ -113,7 +126,7 @@ describe('RelayAuction', () => {
     expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
   });
 
-  it('slot snapping');
+  it('slot snapping', async () => {});
 
   it('test permit');
 });
