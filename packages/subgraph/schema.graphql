@@ -1,0 +1,14 @@
+type Round @entity {
+  id: ID!
+  startBlock: BigInt!
+  slotWinner: Bytes! # address
+  betAmount: BigInt! # uint256
+}
+
+type BidItem @entity {
+  id: ID!
+  slotStartBlock: BigInt!
+  relayer: Bytes!
+  amount: BigInt!
+  time: BigInt!
+}
