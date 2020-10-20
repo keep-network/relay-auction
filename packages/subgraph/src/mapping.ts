@@ -7,7 +7,7 @@ export function handleBid(event: Bid): void {
   // needs to be unique across all entities of the same type
   let bid = new BidItem(event.transaction.hash.toHex());
   bid.amount = event.params.amount;
-  bid.time = event.block.timestamp;
+  bid.time = event.block.timestamp.times(BigInt.fromI32(1000));
   bid.slotStartBlock = event.params.slotStartBlock;
   bid.relayer = event.params.relayer;
 
