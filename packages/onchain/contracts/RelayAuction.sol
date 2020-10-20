@@ -6,17 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // todo: make ownable
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./mocks/MockERC20.sol";
-import {TypedMemView} from "./summa-tx/TypedMemView.sol";
-import {ViewBTC} from "./summa-tx/ViewBTC.sol";
-import {ViewSPV} from "./summa-tx/ViewSPV.sol";
-import {IRelay} from "./summa-tx/IRelay.sol";
+import "./summa-tx/IRelay.sol";
 
 contract RelayAuction {
   using SafeMath for uint256;
-  using TypedMemView for bytes;
-  using TypedMemView for bytes29;
-  using ViewBTC for bytes29;
-  using ViewSPV for bytes29;
 
   uint256 internal constant MAX_UINT = uint256(-1);
   // duration of a slot in bitcoin blocks
@@ -24,7 +17,7 @@ contract RelayAuction {
   // number of blocks for active relayer to be behind, before some-one else can take over
   uint256 constant SNAP_THRESHOLD = 4;
 
-  event NewRound(uint256 indexed startBlock, address indexed slotWinner, uint256 betAmount);
+  event NewRound(uint256 indexed slotStartBlock, address indexed slotWinner, uint256 betAmount);
   event Bid(uint256 indexed slotStartBlock, address indexed relayer, uint256 amount);
   event Snap(uint256 indexed slotStartBlock, address indexed oldWinner, address indexed newWinner);
 
