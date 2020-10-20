@@ -29,7 +29,7 @@ describe('RelayAuction', () => {
     [dev, alice, bob] = await ethers.getSigners();
 
     const {chain, genesis} = REGULAR_CHAIN;
-    relay = await new MockRelayFactory(dev).deploy(genesis.digest_le, 143, BYTES32_0, 211);
+    relay = await new MockRelayFactory(dev).deploy(genesis.digest_le, 143, genesis.digest_le, 143);
 
     rewardToken = await new MockErc20Factory(dev).deploy(expandTo18Decimals(10000));
 
@@ -129,7 +129,29 @@ describe('RelayAuction', () => {
     expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
   });
 
-  it('slot snapping', async () => {});
+  it('slot snapping', async () => {
+    // check round state
+    const bobAddr = await bob.getAddress();
+    let currentRound = await auction.currentRound();
+    expect(currentRound.slotWinner).to.eq(bobAddr);
+    expect(currentRound.startBlock).to.eq(432);
+    const la = await auction.lastAncestor();
 
-  it('test permit');
+    // prepare chain at height 434
+    const {chain, genesis} = REGULAR_CHAIN;
+    const headerHex = chain.map((header) => header.hex);
+    let headers = concatenateHexStrings(headerHex.slice(9, 14));
+    await auction.connect(alice).addHeaders(chain[8].hex, headers);
+    await auction
+      .connect(alice)
+      .markNewHeaviest(chain[13].digest_le, chain[8].hex, chain[13].hex, 6);
+
+    // check state again
+    const aliceAddr = await alice.getAddress();
+    currentRound = await auction.currentRound();
+    expect(currentRound.slotWinner).to.eq(aliceAddr);
+    expect(currentRound.startBlock).to.eq(432);
+  });
+
+  it('test permit', async () => {});
 });
