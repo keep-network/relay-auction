@@ -106,6 +106,9 @@ describe('RelayAuction', () => {
     const aliceBalAfter = await auctionToken.balanceOf(aliceAddr);
     expect(aliceBalAfter.sub(aliceBalBefore)).to.eq(expandTo18Decimals(2));
 
+    // bob getting into next round
+    await auction.connect(bob).bid(432, expandTo18Decimals(4));
+
     // prepare chain at height 431
     await relay.addHeader(chain[5].digest_le, 431);
     headers = concatenateHexStrings(headerHex.slice(6, 9));
