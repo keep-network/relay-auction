@@ -3,12 +3,12 @@
 pragma solidity 0.6.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// todo: make ownable
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./mocks/MockERC20.sol";
 import "./summa-tx/IRelay.sol";
 
-contract RelayAuction {
+contract RelayAuction is Ownable {
   using SafeMath for uint256;
 
   uint256 internal constant MAX_UINT = uint256(-1);
@@ -17,7 +17,7 @@ contract RelayAuction {
   // number of blocks for active relayer to be behind, before some-one else can take over
   uint256 constant SNAP_THRESHOLD = 4;
 
-  event NewRound(uint256 indexed slotStartBlock, address indexed slotWinner, uint256 betAmount);
+  event NewRound(uint256 indexed slotStartBlock, address indexed slotWinner, uint256 amount);
   event Bid(uint256 indexed slotStartBlock, address indexed relayer, uint256 amount);
   event Snap(uint256 indexed slotStartBlock, address indexed oldWinner, address indexed newWinner);
 
@@ -93,11 +93,9 @@ contract RelayAuction {
   function withdrawBid(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock < currentRound.startBlock, "can not withdraw from future rounds");
-    require(
-      auctionToken.transfer(msg.sender, bids[slotStartBlock].amounts[msg.sender]),
-      "could not transfer"
-    );
+    uint256 amount = bids[slotStartBlock].amounts[msg.sender];
     bids[slotStartBlock].amounts[msg.sender] = 0;
+    require(auctionToken.transfer(msg.sender, amount), "could not transfer");
   }
 
   function _updateRound(uint256 _currentBestHeight) internal {
@@ -213,5 +211,14 @@ contract RelayAuction {
       "add header with retarget failed"
     );
     return true;
+  }
+
+  function setRewardAmount(uint256 newRewardAmount) external onlyOwner {
+    rewardAmount = newRewardAmount;
+  }
+
+  function swipe(address tokenAddress) external onlyOwner {
+    IERC20 token = IERC20(tokenAddress);
+    token.transfer(owner(), token.balanceOf(address(this)));
   }
 }
