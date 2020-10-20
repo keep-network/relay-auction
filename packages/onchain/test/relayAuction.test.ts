@@ -1,9 +1,10 @@
 import {ethers} from '@nomiclabs/buidler';
 import {Signer, Contract, Wallet, BigNumber} from 'ethers';
 import chai from 'chai';
+import {ecsign} from 'ethereumjs-util';
+import {deployContract, solidity, MockProvider} from 'ethereum-waffle';
+import {expandTo18Decimals, concatenateHexStrings, getApprovalDigest} from './shared/utilities';
 import REGULAR_CHAIN from './headers.json';
-import {expandTo18Decimals, concatenateHexStrings} from './shared/utilities';
-import {deployContract, solidity} from 'ethereum-waffle';
 import {MockRelay} from '../typechain/MockRelay';
 import {MockRelayFactory} from '../typechain/MockRelayFactory';
 import {MockErc20} from '../typechain/MockErc20';
@@ -15,6 +16,7 @@ chai.use(solidity);
 const {expect} = chai;
 const BYTES32_0 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const rewardAmount = expandTo18Decimals(2);
+const MAX = ethers.constants.MaxUint256;
 
 describe('RelayAuction', () => {
   let dev: Signer;
@@ -153,5 +155,32 @@ describe('RelayAuction', () => {
     expect(currentRound.startBlock).to.eq(432);
   });
 
-  it('test permit', async () => {});
+  it('test permit', async () => {
+    const priv = '0x043a569345b08ead19d1d4ba3462b30632feba623a2a85a3b000eb97f709f09f';
+    const provider = new MockProvider({
+      ganacheOptions: {
+        accounts: [{balance: '100', secretKey: priv}],
+      },
+    });
+    const [wallet] = provider.getWallets();
+
+    const nonce = await auctionToken.nonces(wallet.address);
+    const deadline = MAX;
+    const digest = await getApprovalDigest(
+      auctionToken,
+      {owner: wallet.address, spender: auction.address, value: MAX},
+      nonce,
+      deadline
+    );
+    const {v, r, s} = ecsign(
+      Buffer.from(digest.slice(2), 'hex'),
+      Buffer.from(priv.replace('0x', ''), 'hex')
+    );
+
+    await auction.bidWithPermit(576, expandTo18Decimals(4), deadline, v, r, s);
+
+    const bestBid = await auction.bestBid(576);
+    const devAddr = await dev.getAddress();
+    expect(bestBid).to.eq(devAddr);
+  });
 });
