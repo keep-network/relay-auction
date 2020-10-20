@@ -43,7 +43,7 @@ contract RelayAuction {
   }
 
   Slot public currentRound;
-  bytes32 lastAncestor;
+  bytes32 public lastAncestor;
 
   // mapping from slotStartBlock and address to bet amount
   mapping(uint256 => Bids) private bids;
@@ -144,7 +144,7 @@ contract RelayAuction {
     uint256 relayHeight = relay.findHeight(_ancestor);
 
     Slot memory round = currentRound;
-    bool isActiveSlot = round.startBlock < relayHeight &&
+    bool isActiveSlot = round.startBlock <= relayHeight &&
       relayHeight < round.startBlock + SLOT_LENGTH;
     if (isActiveSlot) {
       if (
@@ -154,8 +154,8 @@ contract RelayAuction {
         // snap the slot
         currentRound.slotWinner = msg.sender;
       }
-      lastAncestor = _ancestor;
     }
+    lastAncestor = _ancestor;
 
     // if we have left the slot, or it is filling up, roll slots forward
     if (!isActiveSlot || relayHeight >= round.startBlock + SLOT_LENGTH) {
