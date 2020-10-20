@@ -26,6 +26,8 @@ describe('RelayAuction', () => {
   let rewardToken: MockErc20;
   let auctionToken: MockErc20;
   let auction: RelayAuction;
+  let roundGas: BigNumber;
+  let snapGas: BigNumber;
 
   before(async () => {
     [dev, alice, bob] = await ethers.getSigners();
@@ -122,7 +124,10 @@ describe('RelayAuction', () => {
     );
 
     // move round forward
-    await auction.connect(alice).markNewHeaviest(chain[8].digest_le, chain[5].hex, chain[8].hex, 3);
+    tx = await auction
+      .connect(alice)
+      .markNewHeaviest(chain[8].digest_le, chain[5].hex, chain[8].hex, 3);
+    roundGas = (await tx.wait(1)).gasUsed;
 
     // bob to withdraw lost bid
     const bobBalBefore = await auctionToken.balanceOf(bobAddr);
@@ -144,9 +149,10 @@ describe('RelayAuction', () => {
     const headerHex = chain.map((header) => header.hex);
     let headers = concatenateHexStrings(headerHex.slice(9, 14));
     await auction.connect(alice).addHeaders(chain[8].hex, headers);
-    await auction
+    const tx = await auction
       .connect(alice)
       .markNewHeaviest(chain[13].digest_le, chain[8].hex, chain[13].hex, 6);
+    snapGas = (await tx.wait(1)).gasUsed;
 
     // check state again
     const aliceAddr = await alice.getAddress();
@@ -182,5 +188,20 @@ describe('RelayAuction', () => {
     const bestBid = await auction.bestBid(576);
     const devAddr = await dev.getAddress();
     expect(bestBid).to.eq(devAddr);
+  });
+
+  it('gas tests', async () => {
+    // do relay within slot
+    const {chain, genesis} = REGULAR_CHAIN;
+    const headerHex = chain.map((header) => header.hex);
+    let headers = concatenateHexStrings(headerHex.slice(14, 17));
+    await auction.connect(alice).addHeaders(chain[13].hex, headers);
+    let tx = await auction
+      .connect(alice)
+      .markNewHeaviest(chain[16].digest_le, chain[13].hex, chain[16].hex, 3);
+    const simpleMarkGas = (await tx.wait(1)).gasUsed;
+    expect(simpleMarkGas).to.be.lt(66000);
+    expect(snapGas).to.be.lt(77000);
+    expect(roundGas).to.be.lt(120000);
   });
 });

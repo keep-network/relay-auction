@@ -19,12 +19,14 @@ contract RelayAuction {
   using ViewSPV for bytes29;
 
   uint256 internal constant MAX_UINT = uint256(-1);
+  // duration of a slot in bitcoin blocks
   uint256 constant SLOT_LENGTH = 144;
   // number of blocks for active relayer to be behind, before some-one else can take over
   uint256 constant SNAP_THRESHOLD = 4;
 
   event NewRound(uint256 indexed startBlock, address indexed slotWinner, uint256 betAmount);
   event Bid(uint256 indexed slotStartBlock, address indexed relayer, uint256 amount);
+  event Snap(uint256 indexed slotStartBlock, address indexed oldWinner, address indexed newWinner);
 
   IERC20 rewardToken;
   uint256 rewardAmount;
@@ -43,10 +45,9 @@ contract RelayAuction {
   }
 
   Slot public currentRound;
-  bytes32 public lastAncestor;
-
   // mapping from slotStartBlock and address to bet amount
   mapping(uint256 => Bids) private bids;
+  bytes32 public lastAncestor;
 
   constructor(
     address _relay,
@@ -140,18 +141,20 @@ contract RelayAuction {
     _updateRound(currentBestHeight);
   }
 
-  function _checkRound(bytes32 _ancestor) internal returns (uint256) {
+  function _checkRound(bytes32 _ancestor) internal {
     uint256 relayHeight = relay.findHeight(_ancestor);
 
     Slot memory round = currentRound;
     bool isActiveSlot = round.startBlock <= relayHeight &&
       relayHeight < round.startBlock + SLOT_LENGTH;
     if (isActiveSlot) {
+      address currentSlotOwner = currentRound.slotWinner;
       if (
-        msg.sender != round.slotWinner &&
+        msg.sender != currentSlotOwner &&
         relayHeight.sub(relay.findHeight(lastAncestor)) >= SNAP_THRESHOLD
       ) {
         // snap the slot
+        emit Snap(round.startBlock, currentSlotOwner, msg.sender);
         currentRound.slotWinner = msg.sender;
       }
     }
@@ -176,34 +179,22 @@ contract RelayAuction {
     );
   }
 
-  /// @notice     Getter for bestKnownDigest
-  /// @dev        This updated only by calling markNewHeaviest
-  /// @return     The hash of the best marked chain tip
+  /// simple proxy to relay, so frontend can use single address
   function getBestKnownDigest() external view returns (bytes32) {
     return relay.getBestKnownDigest();
   }
 
-  /// @notice     Getter for relayGenesis
-  /// @dev        This is updated only by calling markNewHeaviest
-  /// @return     The hash of the shared ancestor of the most recent fork
+  /// simple proxy to relay, so frontend can use single address
   function getLastReorgCommonAncestor() external view returns (bytes32) {
     return relay.getLastReorgCommonAncestor();
   }
 
-  /// @notice         Finds the height of a header by its digest
-  /// @dev            Will fail if the header is unknown
-  /// @param _digest  The header digest to search for
-  /// @return         The height of the header, or error if unknown
+  /// simple proxy to relay, so frontend can use single address
   function findHeight(bytes32 _digest) external view returns (uint256) {
     return relay.findHeight(_digest);
   }
 
-  /// @notice             Checks if a digest is an ancestor of the current one
-  /// @dev                Limit the amount of lookups (and thus gas usage) with _limit
-  /// @param _ancestor    The prospective ancestor
-  /// @param _descendant  The descendant to check
-  /// @param _limit       The maximum number of blocks to check
-  /// @return             true if ancestor is at most limit blocks lower than descendant, otherwise false
+  /// simple proxy to relay, so frontend can use single address
   function isAncestor(
     bytes32 _ancestor,
     bytes32 _descendant,
@@ -212,11 +203,13 @@ contract RelayAuction {
     return relay.isAncestor(_ancestor, _descendant, _limit);
   }
 
+  /// simple proxy to relay, so frontend can use single address
   function addHeaders(bytes calldata _anchor, bytes calldata _headers) external returns (bool) {
     require(relay.addHeaders(_anchor, _headers), "add header failed");
     return true;
   }
 
+  /// simple proxy to relay, so frontend can use single address
   function addHeadersWithRetarget(
     bytes calldata _oldPeriodStartHeader,
     bytes calldata _oldPeriodEndHeader,
