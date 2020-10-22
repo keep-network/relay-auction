@@ -1,6 +1,6 @@
 import { BigInt, Address } from '@graphprotocol/graph-ts';
-import { Contract, Bid, NewRound } from '../generated/Contract/Contract';
-import { Round, BidItem } from '../generated/schema';
+import { Contract, Bid, NewRound, Snap } from '../generated/Contract/Contract';
+import { Round, BidItem, Snapped } from '../generated/schema';
 
 export function handleBid(event: Bid): void {
   // Entities can be loaded from the store using a string ID; this ID
@@ -41,10 +41,18 @@ export function handleNewRound(event: NewRound): void {
   // needs to be unique across all entities of the same type
   let round = new Round(event.transaction.hash.toHex());
 
-  round.startBlock = event.params.startBlock;
+  round.slotStartBlock = event.params.slotStartBlock;
   round.slotWinner = event.params.slotWinner;
-  round.betAmount = event.params.betAmount;
+  round.amount = event.params.amount;
 
   // Entities can be written to the store with `.save()`
   round.save();
+}
+
+export function handleSnap(event: Snap): void {
+  let snap = new Snapped(event.transaction.hash.toHex());
+  snap.slotStartBlock = event.params.slotStartBlock;
+  snap.oldWinner = event.params.oldWinner;
+  snap.newWinner = event.params.newWinner;
+  snap.save();
 }

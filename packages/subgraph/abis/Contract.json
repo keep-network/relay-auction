@@ -1,10 +1,26 @@
 [
   {
     "inputs": [
-      { "internalType": "address", "name": "_relay", "type": "address" },
-      { "internalType": "address", "name": "_rewardToken", "type": "address" },
-      { "internalType": "uint256", "name": "_rewardAmount", "type": "uint256" },
-      { "internalType": "address", "name": "_auctionToken", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "_relay",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_rewardToken",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_rewardAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_auctionToken",
+        "type": "address"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
@@ -40,7 +56,7 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "startBlock",
+        "name": "slotStartBlock",
         "type": "uint256"
       },
       {
@@ -52,7 +68,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "betAmount",
+        "name": "amount",
         "type": "uint256"
       }
     ],
@@ -60,12 +76,70 @@
     "type": "event"
   },
   {
+    "anonymous": false,
     "inputs": [
-      { "internalType": "bytes", "name": "_anchor", "type": "bytes" },
-      { "internalType": "bytes", "name": "_headers", "type": "bytes" }
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "slotStartBlock",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldWinner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newWinner",
+        "type": "address"
+      }
+    ],
+    "name": "Snap",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "_anchor",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_headers",
+        "type": "bytes"
+      }
     ],
     "name": "addHeaders",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -81,19 +155,39 @@
         "name": "_oldPeriodEndHeader",
         "type": "bytes"
       },
-      { "internalType": "bytes", "name": "_headers", "type": "bytes" }
+      {
+        "internalType": "bytes",
+        "name": "_headers",
+        "type": "bytes"
+      }
     ],
     "name": "addHeadersWithRetarget",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "slotStartBlock", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "slotStartBlock",
+        "type": "uint256"
+      }
     ],
     "name": "bestBid",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -104,9 +198,51 @@
         "name": "slotStartBlock",
         "type": "uint256"
       },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
     "name": "bid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "slotStartBlock",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "v",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "r",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bidWithPermit",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -115,21 +251,197 @@
     "inputs": [],
     "name": "currentRound",
     "outputs": [
-      { "internalType": "address", "name": "slotWinner", "type": "address" },
-      { "internalType": "uint256", "name": "startBlock", "type": "uint256" }
+      {
+        "internalType": "address",
+        "name": "slotWinner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startBlock",
+        "type": "uint256"
+      }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "bytes32", "name": "_ancestor", "type": "bytes32" },
-      { "internalType": "bytes", "name": "_currentBest", "type": "bytes" },
-      { "internalType": "bytes", "name": "_newBest", "type": "bytes" },
-      { "internalType": "uint256", "name": "_limit", "type": "uint256" }
+      {
+        "internalType": "bytes32",
+        "name": "_digest",
+        "type": "bytes32"
+      }
+    ],
+    "name": "findHeight",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBestKnownDigest",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getLastReorgCommonAncestor",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_ancestor",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_descendant",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_limit",
+        "type": "uint256"
+      }
+    ],
+    "name": "isAncestor",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastAncestor",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_ancestor",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_currentBest",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "_newBest",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_limit",
+        "type": "uint256"
+      }
     ],
     "name": "markNewHeaviest",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newRewardAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "setRewardAmount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "swipe",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -142,7 +454,11 @@
   },
   {
     "inputs": [
-      { "internalType": "uint256", "name": "slotStartBlock", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "slotStartBlock",
+        "type": "uint256"
+      }
     ],
     "name": "withdrawBid",
     "outputs": [],
