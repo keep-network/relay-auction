@@ -140,13 +140,13 @@ contract RelayAuction is Ownable {
     bool isActiveSlot = round.startBlock <= relayHeight &&
       relayHeight < round.startBlock + SLOT_LENGTH;
     if (isActiveSlot) {
-      address currentSlotOwner = currentRound.slotWinner;
       if (
-        msg.sender != currentSlotOwner &&
+        msg.sender != round.slotWinner &&
+        lastAncestor != 0x0 &&
         relayHeight.sub(relay.findHeight(lastAncestor)) >= SNAP_THRESHOLD
       ) {
         // snap the slot
-        emit Snap(round.startBlock, currentSlotOwner, msg.sender);
+        emit Snap(round.startBlock, round.slotWinner, msg.sender);
         currentRound.slotWinner = msg.sender;
       }
     }
