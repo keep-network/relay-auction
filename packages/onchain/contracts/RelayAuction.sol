@@ -32,7 +32,6 @@ contract RelayAuction is Ownable {
   }
 
   struct Bids {
-    mapping(address => uint256) amounts;
     address bestBidder;
     uint256 bestAmount;
   }
@@ -40,6 +39,7 @@ contract RelayAuction is Ownable {
   Slot public currentRound;
   // mapping from slotStartBlock and address to bet amount
   mapping(uint256 => Bids) private bids;
+  mapping(uint256 => mapping(address => uint256)) private bidAmounts;
   bytes32 public lastAncestor;
 
   constructor(
@@ -62,12 +62,12 @@ contract RelayAuction is Ownable {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     // check that betting for next round
     require(slotStartBlock > currentRound.startBlock, "can not bet for running rounds");
-    uint256 prevBet = bids[slotStartBlock].amounts[msg.sender];
+    uint256 prevBet = bidAmounts[slotStartBlock][msg.sender];
     require(amount > prevBet, "can not bet lower");
     // pull the funds
     auctionToken.transferFrom(msg.sender, address(this), amount.sub(prevBet));
     emit Bid(slotStartBlock, msg.sender, amount);
-    bids[slotStartBlock].amounts[msg.sender] = amount;
+    bidAmounts[slotStartBlock][msg.sender] = amount;
     if (amount > bids[slotStartBlock].bestAmount) {
       bids[slotStartBlock].bestBidder = msg.sender;
       bids[slotStartBlock].bestAmount = amount;
@@ -93,8 +93,8 @@ contract RelayAuction is Ownable {
   function withdrawBid(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock < currentRound.startBlock, "can not withdraw from future rounds");
-    uint256 amount = bids[slotStartBlock].amounts[msg.sender];
-    bids[slotStartBlock].amounts[msg.sender] = 0;
+    uint256 amount = bidAmounts[slotStartBlock][msg.sender];
+    bidAmounts[slotStartBlock][msg.sender] = 0;
     require(auctionToken.transfer(msg.sender, amount), "could not transfer");
   }
 
@@ -115,13 +115,14 @@ contract RelayAuction is Ownable {
 
       // set new current Round
       currentRound = Slot(newWinner, newCurrent);
-      emit NewRound(newCurrent, newWinner, bids[newCurrent].amounts[newWinner]);
+      uint256 winnerBidAmount = bidAmounts[newCurrent][newWinner];
+      emit NewRound(newCurrent, newWinner, winnerBidAmount);
 
       if (newWinner != address(0)) {
-        // burn auctionToken
-        auctionToken.burn(bids[newCurrent].amounts[newWinner] / 2);
         // set bet to 0, so winner can not withdraw
-        bids[newCurrent].amounts[newWinner] = 0;
+        bidAmounts[newCurrent][newWinner] = 0;
+        // burn auctionToken
+        auctionToken.burn(winnerBidAmount / 2);
       }
     }
   }

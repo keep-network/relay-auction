@@ -102,7 +102,10 @@ describe('RelayAuction', () => {
     await relay.addHeader(chain[2].digest_le, 287);
     headers = concatenateHexStrings(headerHex.slice(3, 6));
     await auction.connect(bob).addHeaders(chain[2].hex, headers);
-    await auction.connect(alice).markNewHeaviest(chain[5].digest_le, chain[2].hex, chain[5].hex, 3);
+
+    // try direct call to update Round
+    await relay.markNewHeaviest(chain[5].digest_le, chain[2].hex, chain[5].hex, 3);
+    await auction.updateRound();
 
     // check earnings of relayer
     const aliceRewardBal = await rewardToken.balanceOf(aliceAddr);
