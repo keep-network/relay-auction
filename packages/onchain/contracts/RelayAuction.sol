@@ -92,7 +92,7 @@ contract RelayAuction is Ownable {
 
   function withdrawBid(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
-    require(slotStartBlock < currentRound.startBlock, "can not withdraw from future rounds");
+    require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
     uint256 amount = bidAmounts[slotStartBlock][msg.sender];
     bidAmounts[slotStartBlock][msg.sender] = 0;
     require(auctionToken.transfer(msg.sender, amount), "could not transfer");
