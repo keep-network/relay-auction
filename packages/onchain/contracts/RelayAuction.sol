@@ -63,7 +63,7 @@ contract RelayAuction is Ownable {
     // check that betting for next round
     require(slotStartBlock > currentRound.startBlock, "can not bet for running rounds");
     int256 prevBet = bidAmounts[slotStartBlock][msg.sender];
-    
+
     if (amount > 0) {
       require(amount > prevBet, "can not bet lower");
       uint256 pullValue = (prevBet < 0) ? uint256(amount) : uint256(amount - prevBet);
