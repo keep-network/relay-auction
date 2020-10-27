@@ -12,6 +12,7 @@ contract RelayAuction is Ownable {
   using SafeMath for uint256;
 
   uint256 internal constant MAX_UINT = uint256(-1);
+  uint256 internal constant MAX_MINT = 1e22; // max 10,000 $TRDL / day
   // duration of a slot in bitcoin blocks
   uint256 constant SLOT_LENGTH = 144;
   // number of blocks for active relayer to be behind, before some-one else can take over
@@ -116,6 +117,10 @@ contract RelayAuction is Ownable {
         int256 bestAmount = bids[round.startBlock].bestAmount;
         if (bestAmount > 0) {
           auctionToken.transfer(round.slotWinner, uint256(bestAmount / 2));
+        } else {
+          uint256 mintAmount = uint256(-1 * bestAmount);
+          mintAmount = (mintAmount > MAX_MINT) ? MAX_MINT : mintAmount;
+          auctionToken.mint(round.slotWinner, mintAmount);
         }
       }
 
