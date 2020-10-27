@@ -17,8 +17,8 @@ contract RelayAuction is Ownable {
   // number of blocks for active relayer to be behind, before some-one else can take over
   uint256 constant SNAP_THRESHOLD = 4;
 
-  event NewRound(uint256 indexed slotStartBlock, address indexed slotWinner, uint256 amount);
-  event Bid(uint256 indexed slotStartBlock, address indexed relayer, uint256 amount);
+  event NewRound(uint256 indexed slotStartBlock, address indexed slotWinner, int256 amount);
+  event Bid(uint256 indexed slotStartBlock, address indexed relayer, int256 amount);
   event Snap(uint256 indexed slotStartBlock, address indexed oldWinner, address indexed newWinner);
 
   IERC20 rewardToken;
@@ -33,13 +33,13 @@ contract RelayAuction is Ownable {
 
   struct Bids {
     address bestBidder;
-    uint256 bestAmount;
+    int256 bestAmount;
   }
 
   Slot public currentRound;
   // mapping from slotStartBlock and address to bet amount
   mapping(uint256 => Bids) private bids;
-  mapping(uint256 => mapping(address => uint256)) private bidAmounts;
+  mapping(uint256 => mapping(address => int256)) private bidAmounts;
   bytes32 public lastAncestor;
 
   constructor(
@@ -58,29 +58,36 @@ contract RelayAuction is Ownable {
     return bids[slotStartBlock].bestBidder;
   }
 
-  function _bid(uint256 slotStartBlock, uint256 amount) internal {
+  function _bid(uint256 slotStartBlock, int256 amount) internal {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     // check that betting for next round
     require(slotStartBlock > currentRound.startBlock, "can not bet for running rounds");
-    uint256 prevBet = bidAmounts[slotStartBlock][msg.sender];
-    require(amount > prevBet, "can not bet lower");
-    // pull the funds
-    auctionToken.transferFrom(msg.sender, address(this), amount.sub(prevBet));
+    int256 prevBet = bidAmounts[slotStartBlock][msg.sender];
+    
+    if (amount > 0) {
+      require(amount > prevBet, "can not bet lower");
+      uint256 pullValue = (prevBet < 0) ? uint256(amount) : uint256(amount - prevBet);
+      // pull the funds
+      auctionToken.transferFrom(msg.sender, address(this), pullValue);
+    } else {
+      require(amount < prevBet, "can not bet lower when negative");
+    }
     emit Bid(slotStartBlock, msg.sender, amount);
     bidAmounts[slotStartBlock][msg.sender] = amount;
-    if (amount > bids[slotStartBlock].bestAmount) {
+    int256 bestAmount = bids[slotStartBlock].bestAmount;
+    if ((amount > bestAmount && amount >= 0) || (amount < 0 && amount < bestAmount)) {
       bids[slotStartBlock].bestBidder = msg.sender;
       bids[slotStartBlock].bestAmount = amount;
     }
   }
 
-  function bid(uint256 slotStartBlock, uint256 amount) external {
+  function bid(uint256 slotStartBlock, int256 amount) external {
     _bid(slotStartBlock, amount);
   }
 
   function bidWithPermit(
     uint256 slotStartBlock,
-    uint256 amount,
+    int256 amount,
     uint256 deadline,
     uint8 v,
     bytes32 r,
@@ -93,9 +100,10 @@ contract RelayAuction is Ownable {
   function withdrawBid(uint256 slotStartBlock) external {
     require(slotStartBlock % SLOT_LENGTH == 0, "not a start block");
     require(slotStartBlock <= currentRound.startBlock, "can not withdraw from future rounds");
-    uint256 amount = bidAmounts[slotStartBlock][msg.sender];
+    int256 amount = bidAmounts[slotStartBlock][msg.sender];
+    require(amount > 0, "can not withdraw negative bids");
     bidAmounts[slotStartBlock][msg.sender] = 0;
-    require(auctionToken.transfer(msg.sender, amount), "could not transfer");
+    require(auctionToken.transfer(msg.sender, uint256(amount)), "could not transfer");
   }
 
   function _updateRound(uint256 _currentBestHeight) internal {
@@ -105,7 +113,10 @@ contract RelayAuction is Ownable {
       if (round.slotWinner != address(0)) {
         // pay out old slot owner
         rewardToken.transfer(round.slotWinner, rewardAmount);
-        auctionToken.transfer(round.slotWinner, bids[round.startBlock].bestAmount / 2);
+        int256 bestAmount = bids[round.startBlock].bestAmount;
+        if (bestAmount > 0) {
+          auctionToken.transfer(round.slotWinner, uint256(bestAmount / 2));
+        }
       }
 
       // find new height
@@ -115,14 +126,16 @@ contract RelayAuction is Ownable {
 
       // set new current Round
       currentRound = Slot(newWinner, newCurrent);
-      uint256 winnerBidAmount = bidAmounts[newCurrent][newWinner];
+      int256 winnerBidAmount = bidAmounts[newCurrent][newWinner];
       emit NewRound(newCurrent, newWinner, winnerBidAmount);
 
       if (newWinner != address(0)) {
         // set bet to 0, so winner can not withdraw
         bidAmounts[newCurrent][newWinner] = 0;
-        // burn auctionToken
-        auctionToken.burn(winnerBidAmount / 2);
+        if (winnerBidAmount > 0) {
+          // burn auctionToken
+          auctionToken.burn(uint256(winnerBidAmount / 2));
+        }
       }
     }
   }

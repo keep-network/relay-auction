@@ -103,6 +103,11 @@ describe('RelayAuction', () => {
     headers = concatenateHexStrings(headerHex.slice(3, 6));
     await auction.connect(bob).addHeaders(chain[2].hex, headers);
 
+    // try to withdraw before round over
+    await expect(auction.connect(bob).withdrawBid(288)).to.be.revertedWith(
+      'can not withdraw from future rounds'
+    );
+
     // try direct call to update Round
     await relay.markNewHeaviest(chain[5].digest_le, chain[2].hex, chain[5].hex, 3);
     await auction.updateRound();
@@ -116,27 +121,22 @@ describe('RelayAuction', () => {
     // bob getting into next round
     await auction.connect(bob).bid(432, expandTo18Decimals(4));
 
+    // bob to withdraw lost bid
+    const bobBalBefore = await auctionToken.balanceOf(bobAddr);
+    await auction.connect(bob).withdrawBid(288);
+    const bobBalAfter = await auctionToken.balanceOf(bobAddr);
+    expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
+
     // prepare chain at height 431
     await relay.addHeader(chain[5].digest_le, 431);
     headers = concatenateHexStrings(headerHex.slice(6, 9));
     await auction.connect(bob).addHeaders(chain[5].hex, headers);
-
-    // try to withdraw before round over
-    await expect(auction.connect(bob).withdrawBid(288)).to.be.revertedWith(
-      'can not withdraw from future rounds'
-    );
 
     // move round forward
     tx = await auction
       .connect(alice)
       .markNewHeaviest(chain[8].digest_le, chain[5].hex, chain[8].hex, 3);
     roundGas = (await tx.wait(1)).gasUsed;
-
-    // bob to withdraw lost bid
-    const bobBalBefore = await auctionToken.balanceOf(bobAddr);
-    await auction.connect(bob).withdrawBid(288);
-    const bobBalAfter = await auctionToken.balanceOf(bobAddr);
-    expect(bobBalAfter.sub(bobBalBefore)).to.eq(expandTo18Decimals(4));
   });
 
   it('slot snapping', async () => {
