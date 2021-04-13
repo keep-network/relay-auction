@@ -167,6 +167,12 @@ contract MockRelay is IRelay {
   /// @param  _new              The 80-byte header to mark as the new best
   /// @param  _limit            Limit the amount of traversal of the chain
   /// @return                   True if successfully updates bestKnownDigest, error otherwise
+  ///
+  /// FIXME: Tests from `relayAuction.test.ts` which use the new best hash as
+  ///  `_ancestor` do it wrong. They should use the current best hash instead.
+  ///  They are successful just because this mock `_markNewHeaviest` function
+  ///  doesn't contain preconditions checks from the original Relay:
+  ///  https://github.com/summa-tx/relays/blob/30704ab2c443a8a24bdb1228da1e453347f62d3b/solidity/contracts/Relay.sol#L348
   function _markNewHeaviest(
     bytes32 _ancestor,
     bytes29 _current, // Header
